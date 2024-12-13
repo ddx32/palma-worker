@@ -2,4 +2,6 @@
 
 interface Env {
 	PALMA_HAYEK_KV: KVNamespace;
+	SLACK_CHANNEL_ID: 'C12345678';
+	SLACK_API_TOKEN: string;
 }

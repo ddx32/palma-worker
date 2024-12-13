@@ -1,5 +1,22 @@
+import { sendSlackMessage } from './sendSlackMessage';
+
+const breakpoints = [40, 60, 80];
+
+function updateSlackChannel(currentMoisture: number, newMoisture: number, channel: string, token: string) {
+	if (!channel) {
+		return;
+	}
+
+	if (currentMoisture > newMoisture) {
+		return new Response('Value is less than current value', { status: 400 });
+	}
+
+	const message = `The moisture level has been updated to ${newMoisture}.`;
+	return sendSlackMessage(channel, token, message);
+}
+
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
+	async fetch(request, env): Promise<Response> {
 		if (request.method === 'GET') {
 			const value = await env.PALMA_HAYEK_KV.get('MOISTURE');
 			if (value === null) {
@@ -10,8 +27,16 @@ export default {
 
 		if (request.method === 'POST') {
 			const value = await request.text();
-			await env.PALMA_HAYEK_KV.put('MOISTURE', String(value));
-			return new Response('Value set');
+			const moisture = Number(value);
+			if (isNaN(moisture) || moisture < 0 || moisture > 100) {
+				return new Response('Invalid value', { status: 400 });
+			}
+
+			const current = await env.PALMA_HAYEK_KV.get('MOISTURE');
+
+			await env.PALMA_HAYEK_KV.put('MOISTURE', String(moisture));
+			await updateSlackChannel(Number(current), moisture, env.SLACK_CHANNEL_ID, env.SLACK_API_TOKEN);
+			return new Response('OK', { status: 200 });
 		}
 
 		return new Response('Method not allowed', { status: 405 });
